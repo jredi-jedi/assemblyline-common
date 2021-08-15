@@ -1,0 +1,12 @@
+ARG BRANCH=latest
+ARG PROJECT=cccs
+FROM ${PROJECT}/assemblyline-core:${BRANCH}
+ARG REPOSRC=https://github.com/CybercentreCanada
+ARG REPOTAG=master
+ARG version
+RUN git clone ${REPOSRC}/assemblyline-service-server.git install \
+    && ( cd install \
+    && git checkout ${REPOTAG} \
+    && python3 ./setup.py build \
+    && python3 ./setup.py install --user ) \
+    && rm -rf install    

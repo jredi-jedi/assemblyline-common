@@ -1,0 +1,34 @@
+ARG BRANCH=latest
+ARG PROJECT=cccs
+FROM ${PROJECT}/assemblyline:${BRANCH} as base
+# Create a temporarary image to compile dependencies
+FROM base AS builder
+# Switch to root to install common dependancies
+USER root
+RUN apt-get update && apt-get install -yy build-essential python3-dev \
+    libldap2-dev libsasl2-dev ldap-utils python-tox lcov
+USER assemblyline
+RUN touch /tmp/before-install
+ARG REPOSRC=https://github.com/CybercentreCanada
+ARG REPOTAG=master
+ARG version
+RUN pip install --user gevent flask
+RUN git clone ${REPOSRC}/assemblyline-ui.git install \
+    && cd install \
+    && git checkout ${REPOTAG} \
+    && python3 ./setup.py build \
+    && python3 ./setup.py install --user \
+    && rm -rf install    
+# Remove files that existed before the pip install so that our copy command below doesn't take a snapshot of
+# files that already exist in the base image
+RUN find /var/lib/assemblyline/.local -type f ! -newer /tmp/before-install -delete
+
+# Create a new image, without compile depedencies
+FROM base
+
+# Get the updated local dir from builder
+COPY --chown=assemblyline:assemblyline --from=builder /var/lib/assemblyline/.local /var/lib/assemblyline/.local
+
+# Switch back to assemblyline and run the app
+USER assemblyline
+CMD ["gunicorn", "-b", ":5002", "-w", "1", "-k", "geventwebsocket.gunicorn.workers.GeventWebSocketWorker", "assemblyline_ui.socketsrv:app"]

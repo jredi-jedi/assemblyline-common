@@ -1,0 +1,25 @@
+# Build source environment
+ARG BRANCH=latest
+ARG PROJECT=cccs
+FROM node:14-alpine AS builder
+ARG REPOSRC=https://github.com/CybercentreCanada
+ARG REPOTAG=master
+ARG version
+WORKDIR /tmp
+RUN apk add git && git clone ${REPOSRC}/assemblyline-ui-frontend.git install
+WORKDIR /tmp/install
+
+#need this because the COPY instruction in the original Dockerfile 
+#filters out dotfiles.
+
+ENV DISABLE_ESLINT_PLUGIN=true
+RUN npm ci --prod --silent
+RUN npm run build
+
+# Production container creation
+FROM node:14-alpine
+RUN npm install -g serve
+WORKDIR /usr/src/app
+COPY --from=builder /tmp/install/build .
+EXPOSE 3000
+CMD ["serve", "-s",  "-l", "3000"]

@@ -1,0 +1,4 @@
+ARG BRANCH=latest
+ARG PROJECT=cccs
+FROM ${PROJECT}/assemblyline-socketio:${BRANCH}
+CMD ["gunicorn", "assemblyline_ui.patched:app", "--config=python:assemblyline_ui.gunicorn_config", "--worker-class", "gevent"]
